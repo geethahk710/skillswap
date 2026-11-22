@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillSwap Admin Login</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #eef2ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .login-box {
+            background: white;
+            padding: 35px;
+            width: 330px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+            text-align: center;
+        }
+
+        h1 {
+            color: #2563eb;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 12px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #message {
+            margin-top: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-box">
+
+    <h1>SkillSwap</h1>
+    <h2>Admin Login</h2>
+
+    <form id="adminForm">
+
+        <input
+            type="text"
+            id="username"
+            placeholder="Admin Username"
+            required>
+
+        <input
+            type="password"
+            id="password"
+            placeholder="Admin Password"
+            required>
+
+        <button type="submit">Login as Admin</button>
+
+    </form>
+
+    <p id="message"></p>
+
+</div>
+
+<script>
+
+document.getElementById("adminForm").addEventListener("submit", function(event) {
+
+    event.preventDefault();
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    fetch("/api/admin/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            username: username,
+            password: password
+        })
+    })
+
+    .then(async response => {
+        const result = await response.text();
+
+        if (!response.ok) {
+            throw new Error(result);
+        }
+
+        return result;
+    })
+
+    .then(result => {
+        document.getElementById("message").style.color = "green";
+        document.getElementById("message").textContent = result;
+
+        window.location.href = "admin-dashboard.html";
+    })
+
+    .catch(error => {
+        document.getElementById("message").style.color = "red";
+        document.getElementById("message").textContent =
+            "Invalid admin username or password!";
+    });
+
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillSwap - Edit Profile</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+        }
+
+        .container {
+            max-width: 450px;
+            margin: 60px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #243b55;
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 22px;
+            background: #243b55;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #141e30;
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .back {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back a {
+            color: #243b55;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>Edit Your Profile</h2>
+
+    <form id="profileForm">
+
+        <label>Full Name</label>
+        <input type="text" id="name" required>
+
+        <label>Skill You Can Teach</label>
+        <input type="text" id="skillToTeach">
+
+        <label>Skill You Want to Learn</label>
+        <input type="text" id="skillToLearn">
+
+        <button type="submit">Save Changes</button>
+
+    </form>
+
+    <p id="message"></p>
+
+    <div class="back">
+        <a href="dashboard.html">Back to Dashboard</a>
+    </div>
+
+</div>
+
+<script>
+
+async function loadProfile() {
+
+    try {
+        const response = await fetch("/api/users/profile", {
+            credentials: "same-origin"
+        });
+
+        if (response.status === 401) {
+            window.location.href = "login.html";
+            return;
+        }
+
+        const user = await response.json();
+
+        document.getElementById("name").value = user.name || "";
+        document.getElementById("skillToTeach").value = user.skillToTeach || "";
+        document.getElementById("skillToLearn").value = user.skillToLearn || "";
+
+    } catch (error) {
+        document.getElementById("message").innerText =
+            "Unable to load profile.";
+    }
+}
+
+document.getElementById("profileForm").addEventListener("submit",
+    async function(event) {
+
+        event.preventDefault();
+
+        const details = {
+            name: document.getElementById("name").value,
+            skillToTeach: document.getElementById("skillToTeach").value,
+            skillToLearn: document.getElementById("skillToLearn").value
+        };
+
+        try {
+            const response = await fetch("/api/users/profile", {
+                method: "PUT",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(details)
+            });
+
+            const result = await response.json();
+
+            document.getElementById("message").innerText =
+                result.message || result.error || "Something went wrong.";
+
+            if (response.ok) {
+                document.getElementById("message").style.color = "green";
+            } else {
+                document.getElementById("message").style.color = "red";
+            }
+
+        } catch (error) {
+            document.getElementById("message").innerText =
+                "Unable to update profile.";
+        }
+    }
+);
+
+loadProfile();
+
+</script>
+
+</body>
+</html>

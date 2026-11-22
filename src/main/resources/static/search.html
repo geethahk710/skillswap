@@ -1,0 +1,426 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillSwap - Search Skills</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+        }
+
+        header {
+            background: #2563eb;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .search-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px #ddd;
+            text-align: center;
+        }
+
+        input {
+            width: 70%;
+            padding: 13px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 13px 22px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 15px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .request-button {
+            background: #16a34a;
+        }
+
+        .request-button:hover {
+            background: #15803d;
+        }
+
+        .user-card {
+            background: white;
+            padding: 22px;
+            margin-top: 18px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px #ddd;
+        }
+
+        .user-card h3 {
+            color: #2563eb;
+        }
+
+        #results {
+            margin-top: 25px;
+        }
+
+        #message {
+            text-align: center;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 25px;
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>SkillSwap</h1>
+    <p>Find People. Share Skills. Learn Together.</p>
+</header>
+
+<div class="container">
+
+    <div class="search-box">
+
+        <h2>Search for Skills</h2>
+
+        <p>Find people who can teach you new skills.</p>
+
+        <input
+            type="text"
+            id="skillInput"
+            placeholder="Enter a skill (Example: Java)"
+        >
+
+        <br>
+
+        <button onclick="searchSkills()">Search</button>
+
+    </div>
+
+    <div id="message"></div>
+
+    <div id="results"></div>
+
+    <a href="dashboard.html" class="back">
+        ← Back to Dashboard
+    </a>
+
+</div>
+
+
+<script>
+
+    let currentUser = null;
+
+
+    // CHECK LOGIN AND LOAD PROFILE
+    async function checkLogin() {
+
+        try {
+
+            const response = await fetch("/api/users/profile", {
+                credentials: "same-origin"
+            });
+
+            if (response.status === 401) {
+
+                alert("Please login first!");
+
+                window.location.href = "login.html";
+
+                return false;
+            }
+
+            if (!response.ok) {
+                throw new Error("Unable to load profile");
+            }
+
+            currentUser = await response.json();
+
+            return true;
+
+        } catch (error) {
+
+            document.getElementById("message").textContent =
+                "Unable to connect to server.";
+
+            return false;
+        }
+    }
+
+
+    // SEARCH SKILLS
+    async function searchSkills() {
+
+        const skill =
+            document.getElementById("skillInput").value.trim();
+
+        const results =
+            document.getElementById("results");
+
+        const message =
+            document.getElementById("message");
+
+        results.innerHTML = "";
+
+        if (!skill) {
+
+            message.textContent =
+                "Please enter a skill to search.";
+
+            message.className = "error";
+
+            return;
+        }
+
+        message.textContent = "Searching...";
+
+        message.className = "";
+
+        try {
+
+            const response = await fetch(
+                "/api/users/search?skill=" +
+                encodeURIComponent(skill),
+                {
+                    credentials: "same-origin"
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("Search failed");
+            }
+
+            const users = await response.json();
+
+            message.textContent = "";
+
+            if (users.length === 0) {
+
+                message.textContent =
+                    "No users found for this skill. Try again later!";
+
+                return;
+            }
+
+            users.forEach(user => {
+
+                const card = document.createElement("div");
+
+                card.className = "user-card";
+
+                const name = document.createElement("h3");
+
+                name.textContent = user.name || "User";
+
+                const teach = document.createElement("p");
+
+                teach.textContent =
+                    "Can Teach: " + (user.skillToTeach || "Not specified");
+
+                const learn = document.createElement("p");
+
+                learn.textContent =
+                    "Wants to Learn: " + (user.skillToLearn || "Not specified");
+
+                card.append(name, teach, learn);
+
+                // DO NOT ALLOW REQUEST TO YOURSELF
+                if (
+                    currentUser.email.toLowerCase() !==
+                    user.email.toLowerCase()
+                ) {
+
+                    const requestButton =
+                        document.createElement("button");
+
+                    requestButton.textContent =
+                        "Send Exchange Request";
+
+                    requestButton.className = "request-button";
+
+                    requestButton.onclick = () =>
+                        sendRequest(user);
+
+                    card.appendChild(requestButton);
+
+                } else {
+
+                    const ownProfile =
+                        document.createElement("p");
+
+                    ownProfile.textContent = "This is your profile.";
+
+                    card.appendChild(ownProfile);
+
+                }
+
+                results.appendChild(card);
+
+            });
+
+        } catch (error) {
+
+            message.textContent =
+                "Unable to search skills. Please try again.";
+
+            message.className = "error";
+
+        }
+
+    }
+
+
+    // SEND SKILL EXCHANGE REQUEST
+    async function sendRequest(user) {
+
+        if (!currentUser) {
+            alert("Please login first!");
+            return;
+        }
+
+        if (!currentUser.skillToTeach ||
+            !currentUser.skillToTeach.trim()) {
+
+            alert("Please add a skill you can teach to your profile first.");
+
+            return;
+        }
+
+        if (!user.skillToTeach) {
+
+            alert("This user has not specified a teaching skill.");
+
+            return;
+        }
+
+        const request = {
+
+            receiverEmail: user.email,
+
+            skillOffered: currentUser.skillToTeach,
+
+            skillRequested: user.skillToTeach
+
+        };
+
+        try {
+
+            const response = await fetch("/api/requests/send", {
+
+                method: "POST",
+
+                credentials: "same-origin",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(request)
+
+            });
+
+            const result = await response.json();
+
+            if (response.status === 401) {
+
+                alert("Please login again.");
+
+                window.location.href = "login.html";
+
+                return;
+            }
+
+            if (!response.ok) {
+
+                throw new Error(
+                    result.error || "Unable to send request."
+                );
+
+            }
+
+            alert(result.message);
+
+        } catch (error) {
+
+            alert(error.message);
+
+        }
+
+    }
+
+
+    // SEARCH USING ENTER KEY
+    document.getElementById("skillInput")
+        .addEventListener("keypress", function(event) {
+
+            if (event.key === "Enter") {
+
+                searchSkills();
+
+            }
+
+        });
+
+
+    // START PAGE
+    async function startPage() {
+
+        const loggedIn = await checkLogin();
+
+        if (!loggedIn) {
+
+            if (!currentUser) {
+                window.location.href = "login.html";
+            }
+
+        }
+
+    }
+
+    startPage();
+
+</script>
+
+</body>
+</html>

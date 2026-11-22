@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillSwap Admin Dashboard</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    font-family: Arial, sans-serif;
+    background: #eef2ff;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+.header {
+    background: #2563eb;
+    color: white;
+    padding: 25px;
+    text-align: center;
+    border-radius: 12px;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 18px;
+    margin-top: 25px;
+}
+
+.stat-card, .card {
+    background: white;
+    padding: 22px;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+}
+
+.stat-card {
+    text-align: center;
+}
+
+.stat-card h3 {
+    color: #475569;
+}
+
+.stat-card p {
+    font-size: 32px;
+    font-weight: bold;
+    color: #2563eb;
+}
+
+.card {
+    margin-top: 25px;
+    overflow-x: auto;
+}
+
+h2 { color: #1e40af; }
+
+button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    margin: 4px;
+}
+
+button:hover { opacity: 0.85; }
+
+.delete, .reject, .logout {
+    background: #dc2626;
+}
+
+.accept {
+    background: #16a34a;
+}
+
+input {
+    padding: 12px;
+    width: 70%;
+    max-width: 400px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    margin: 5px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    min-width: 650px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background: #2563eb;
+    color: white;
+}
+
+tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+.message {
+    margin-top: 12px;
+    color: #475569;
+}
+
+.footer {
+    text-align: center;
+    padding: 20px;
+}
+
+.logout {
+    padding: 13px 25px;
+    margin-top: 25px;
+    font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>SkillSwap Admin Dashboard</h1>
+        <p>Welcome, Administrator!</p>
+        <p>Manage Users and Skill Exchange Requests</p>
+    </div>
+
+    <!-- STATISTICS -->
+
+    <div class="stats">
+
+        <div class="stat-card">
+            <h3>Total Users</h3>
+            <p id="totalUsers">0</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Total Requests</h3>
+            <p id="totalRequests">0</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Pending Requests</h3>
+            <p id="pendingRequests">0</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Accepted Requests</h3>
+            <p id="acceptedRequests">0</p>
+        </div>
+
+    </div>
+
+    <div style="text-align:center; margin-top:20px;">
+        <button onclick="loadStatistics()">Refresh Statistics</button>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+
+    <div class="card">
+
+        <h2>User Management</h2>
+
+        <input
+            type="text"
+            id="userSearch"
+            placeholder="Search by name, email or skill..."
+        >
+
+        <button onclick="searchUsers()">Search</button>
+
+        <button onclick="loadUsers()">Show All Users</button>
+
+        <div id="users" class="message">
+            Click Show All Users to display registered users.
+        </div>
+
+    </div>
+
+    <!-- REQUEST MANAGEMENT -->
+
+    <div class="card">
+
+        <h2>Skill Exchange Request Management</h2>
+
+        <button onclick="loadRequests()">View All Requests</button>
+
+        <div id="requests" class="message">
+            Click View All Requests to display requests.
+        </div>
+
+    </div>
+
+    <div class="footer">
+        <button class="logout" onclick="logout()">Logout</button>
+    </div>
+
+</div>
+
+<script>
+
+// CHECK ADMIN SESSION
+
+async function checkAdmin() {
+
+    try {
+        const response = await fetch("/api/admin/check", {
+            credentials: "same-origin"
+        });
+
+        if (!response.ok) {
+            window.location.replace("admin-login.html");
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!data.authenticated) {
+            window.location.replace("admin-login.html");
+            return;
+        }
+
+        loadStatistics();
+
+    } catch (error) {
+        window.location.replace("admin-login.html");
+    }
+}
+
+
+// LOAD STATISTICS
+
+async function loadStatistics() {
+
+    try {
+
+        const [userResponse, requestResponse] = await Promise.all([
+            fetch("/api/admin/users", { credentials: "same-origin" }),
+            fetch("/api/admin/requests", { credentials: "same-origin" })
+        ]);
+
+        if (!userResponse.ok || !requestResponse.ok) {
+            throw new Error("Unable to load data");
+        }
+
+        const users = await userResponse.json();
+        const requests = await requestResponse.json();
+
+        if (!Array.isArray(users) || !Array.isArray(requests)) {
+            throw new Error("Invalid data");
+        }
+
+        document.getElementById("totalUsers").textContent = users.length;
+
+        document.getElementById("totalRequests").textContent =
+            requests.length;
+
+        document.getElementById("pendingRequests").textContent =
+            requests.filter(r => r.status === "PENDING").length;
+
+        document.getElementById("acceptedRequests").textContent =
+            requests.filter(r => r.status === "ACCEPTED").length;
+
+    } catch (error) {
+        console.error(error);
+        alert("Unable to load statistics. Check your admin login.");
+    }
+}
+
+
+// DISPLAY USERS TABLE
+
+function displayUsers(data, showDelete = true) {
+
+    const container = document.getElementById("users");
+
+    if (data.length === 0) {
+        container.textContent = "No matching users found.";
+        return;
+    }
+
+    let html = `
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Skill To Teach</th>
+            <th>Skill To Learn</th>
+            ${showDelete ? "<th>Action</th>" : ""}
+        </tr>
+    `;
+
+    data.forEach(user => {
+
+        html += `
+        <tr>
+            <td>${escapeHTML(user.id)}</td>
+            <td>${escapeHTML(user.name)}</td>
+            <td>${escapeHTML(user.email)}</td>
+            <td>${escapeHTML(user.skillToTeach)}</td>
+            <td>${escapeHTML(user.skillToLearn)}</td>
+            ${showDelete ? `
+            <td>
+                <button class="delete"
+                onclick="deleteUser(${Number(user.id)})">
+                    Delete
+                </button>
+            </td>` : ""}
+        </tr>
+        `;
+
+    });
+
+    html += "</table>";
+
+    container.innerHTML = html;
+}
+
+
+// LOAD ALL USERS
+
+async function loadUsers() {
+
+    const container = document.getElementById("users");
+    container.textContent = "Loading users...";
+
+    try {
+
+        const response = await fetch("/api/admin/users", {
+            credentials: "same-origin"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !Array.isArray(data)) {
+            container.textContent = "Unable to load users. Login again.";
+            return;
+        }
+
+        displayUsers(data);
+
+    } catch (error) {
+        container.textContent = "Error loading users.";
+    }
+}
+
+
+// SEARCH USERS
+
+async function searchUsers() {
+
+    const keyword = document.getElementById("userSearch")
+        .value.trim().toLowerCase();
+
+    const container = document.getElementById("users");
+    container.textContent = "Searching users...";
+
+    try {
+
+        const response = await fetch("/api/admin/users", {
+            credentials: "same-origin"
+        });
+
+        const users = await response.json();
+
+        if (!response.ok || !Array.isArray(users)) {
+            container.textContent = "Unable to search users.";
+            return;
+        }
+
+        const results = users.filter(user => {
+
+            return [
+                user.name,
+                user.email,
+                user.skillToTeach,
+                user.skillToLearn
+            ].some(value =>
+                String(value ?? "").toLowerCase().includes(keyword)
+            );
+
+        });
+
+        displayUsers(results);
+
+    } catch (error) {
+        container.textContent = "Error searching users.";
+    }
+}
+
+
+// DELETE USER
+
+async function deleteUser(id) {
+
+    const confirmed = confirm(
+        "Are you sure you want to permanently delete this user?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+
+        const response = await fetch(
+            "/api/admin/users/" + id,
+            {
+                method: "DELETE",
+                credentials: "same-origin"
+            }
+        );
+
+        const data = await response.json();
+
+        alert(data.message || data.error || "Operation completed.");
+
+        if (response.ok && data.message) {
+            loadUsers();
+            loadStatistics();
+        }
+
+    } catch (error) {
+        alert("Unable to delete user.");
+    }
+}
+
+
+// LOAD ALL REQUESTS
+
+async function loadRequests() {
+
+    const container = document.getElementById("requests");
+    container.textContent = "Loading requests...";
+
+    try {
+
+        const response = await fetch("/api/admin/requests", {
+            credentials: "same-origin"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !Array.isArray(data)) {
+            container.textContent = "Unable to load requests.";
+            return;
+        }
+
+        if (data.length === 0) {
+            container.textContent = "No exchange requests found.";
+            return;
+        }
+
+        let html = `
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Sender</th>
+                <th>Receiver</th>
+                <th>Skill Offered</th>
+                <th>Skill Requested</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        `;
+
+        data.forEach(request => {
+
+            html += `
+            <tr>
+                <td>${escapeHTML(request.id)}</td>
+                <td>${escapeHTML(request.senderEmail)}</td>
+                <td>${escapeHTML(request.receiverEmail)}</td>
+                <td>${escapeHTML(request.skillOffered)}</td>
+                <td>${escapeHTML(request.skillRequested)}</td>
+                <td>${escapeHTML(request.status)}</td>
+                <td>
+                    <button class="accept"
+                    onclick="updateRequest(${Number(request.id)}, 'ACCEPTED')">
+                        Accept
+                    </button>
+
+                    <button class="reject"
+                    onclick="updateRequest(${Number(request.id)}, 'REJECTED')">
+                        Reject
+                    </button>
+                </td>
+            </tr>
+            `;
+
+        });
+
+        html += "</table>";
+
+        container.innerHTML = html;
+
+    } catch (error) {
+        container.textContent = "Error loading requests.";
+    }
+}
+
+
+// UPDATE REQUEST
+
+async function updateRequest(id, status) {
+
+    const confirmed = confirm(
+        "Are you sure you want to mark this request as " + status + "?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+
+        const response = await fetch(
+            "/api/admin/requests/" + id,
+            {
+                method: "PUT",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ status: status })
+            }
+        );
+
+        const data = await response.json();
+
+        alert(data.message || data.error || "Request updated.");
+
+        if (response.ok && data.message) {
+            loadRequests();
+            loadStatistics();
+        }
+
+    } catch (error) {
+        alert("Unable to update request.");
+    }
+}
+
+
+// SAFE HTML DISPLAY
+
+function escapeHTML(value) {
+
+    return String(value ?? "").replace(/[&<>"']/g, function(char) {
+
+        const entities = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return entities[char];
+
+    });
+}
+
+
+// ADMIN LOGOUT
+
+async function logout() {
+
+    try {
+
+        await fetch("/api/admin/logout", {
+            method: "POST",
+            credentials: "same-origin"
+        });
+
+    } finally {
+
+        window.location.replace("admin-login.html");
+
+    }
+}
+
+
+// START DASHBOARD
+
+checkAdmin();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,319 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Notifications - SkillSwap</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4ff;
+            margin: 0;
+            padding: 25px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2447a5;
+        }
+
+        h2 {
+            color: #2447a5;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px #00000015;
+        }
+
+        .notification {
+            background: #f4f6ff;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 8px;
+            border-left: 5px solid #3159c9;
+            overflow-wrap: anywhere;
+        }
+
+        button {
+            background: #3159c9;
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        a {
+            color: #2447a5;
+            text-decoration: none;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .empty {
+            color: #666;
+            padding: 10px;
+        }
+
+        #message {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <a href="dashboard.html">← Back to Dashboard</a>
+
+    <h1>My Notifications 🔔</h1>
+
+    <p id="message"></p>
+
+    <!-- RECEIVED REQUESTS -->
+    <div class="card">
+
+        <h2>Received Requests</h2>
+
+        <div id="received">Loading...</div>
+
+    </div>
+
+
+    <!-- SENT REQUESTS -->
+    <div class="card">
+
+        <h2>My Sent Requests</h2>
+
+        <div id="sent">Loading...</div>
+
+    </div>
+
+    <button onclick="loadNotifications()">
+        Refresh Notifications
+    </button>
+
+</div>
+
+
+<script>
+
+    // CHECK USER LOGIN
+    async function checkLogin() {
+
+        try {
+
+            const response = await fetch("/api/users/check", {
+                credentials: "same-origin"
+            });
+
+            const result = await response.json();
+
+            if (!result.authenticated) {
+
+                alert("Please login first!");
+
+                window.location.href = "login.html";
+
+                return false;
+            }
+
+            return true;
+
+        } catch (error) {
+
+            alert("Unable to verify login.");
+
+            window.location.href = "login.html";
+
+            return false;
+        }
+    }
+
+
+    // LOAD NOTIFICATIONS
+    async function loadNotifications() {
+
+        const receivedDiv =
+            document.getElementById("received");
+
+        const sentDiv =
+            document.getElementById("sent");
+
+        const message =
+            document.getElementById("message");
+
+        receivedDiv.textContent = "Loading received requests...";
+        sentDiv.textContent = "Loading sent requests...";
+
+        message.textContent = "";
+
+        try {
+
+            const [receivedResponse, sentResponse] =
+                await Promise.all([
+
+                    fetch("/api/requests/received", {
+                        credentials: "same-origin"
+                    }),
+
+                    fetch("/api/requests/sent", {
+                        credentials: "same-origin"
+                    })
+
+                ]);
+
+            if (receivedResponse.status === 401 ||
+                sentResponse.status === 401) {
+
+                window.location.href = "login.html";
+
+                return;
+            }
+
+            if (!receivedResponse.ok || !sentResponse.ok) {
+
+                throw new Error("Unable to load notifications.");
+
+            }
+
+            const received = await receivedResponse.json();
+
+            const sent = await sentResponse.json();
+
+            receivedDiv.innerHTML = "";
+
+            sentDiv.innerHTML = "";
+
+
+            // DISPLAY RECEIVED REQUESTS
+            if (received.length === 0) {
+
+                receivedDiv.textContent =
+                    "No received requests.";
+
+            }
+
+            received.forEach(request => {
+
+                const div = document.createElement("div");
+
+                div.className = "notification";
+
+                const details = document.createElement("p");
+
+                details.textContent =
+                    "New request from: " + request.senderEmail +
+                    " | Offered: " + request.skillOffered +
+                    " | Requested: " + request.skillRequested;
+
+                const status = document.createElement("p");
+
+                status.className = "status";
+
+                status.textContent =
+                    "Status: " + request.status;
+
+                div.appendChild(details);
+
+                div.appendChild(status);
+
+                receivedDiv.appendChild(div);
+
+            });
+
+
+            // DISPLAY SENT REQUESTS
+            if (sent.length === 0) {
+
+                sentDiv.textContent =
+                    "You have not sent any requests.";
+
+            }
+
+            sent.forEach(request => {
+
+                const div = document.createElement("div");
+
+                div.className = "notification";
+
+                const details = document.createElement("p");
+
+                details.textContent =
+                    "Request sent to: " + request.receiverEmail +
+                    " | Offered: " + request.skillOffered +
+                    " | Requested: " + request.skillRequested;
+
+                const status = document.createElement("p");
+
+                status.className = "status";
+
+                status.textContent =
+                    "Status: " + request.status;
+
+                div.appendChild(details);
+
+                div.appendChild(status);
+
+                sentDiv.appendChild(div);
+
+            });
+
+        } catch (error) {
+
+            message.textContent = error.message;
+
+            receivedDiv.textContent =
+                "Unable to load received requests.";
+
+            sentDiv.textContent =
+                "Unable to load sent requests.";
+
+        }
+    }
+
+
+    // START PAGE
+    async function startPage() {
+
+        const loggedIn = await checkLogin();
+
+        if (loggedIn) {
+
+            loadNotifications();
+
+        }
+
+    }
+
+    startPage();
+
+</script>
+
+</body>
+</html>

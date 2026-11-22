@@ -1,0 +1,477 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Exchange Requests - SkillSwap</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4ff;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2447a5;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px #00000015;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 11px 18px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            background: #3159c9;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        .reject {
+            background: #dc3545;
+        }
+
+        .request {
+            background: #f5f7ff;
+            padding: 15px;
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #2447a5;
+            text-decoration: none;
+        }
+
+        #message {
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <a class="back" href="dashboard.html">← Back to Dashboard</a>
+
+    <h1>Skill Exchange Requests</h1>
+
+    <!-- SEND REQUEST -->
+    <div class="card">
+
+        <h2>Send a Request</h2>
+
+        <form id="requestForm">
+
+            <label>Receiver's Email</label>
+            <input type="email" id="receiverEmail" required>
+
+            <label>Skill You Can Teach</label>
+            <input type="text" id="skillOffered" required>
+
+            <label>Skill You Want to Learn</label>
+            <input type="text" id="skillRequested" required>
+
+            <button type="submit">Send Request</button>
+
+        </form>
+
+        <p id="message"></p>
+
+    </div>
+
+
+    <!-- RECEIVED REQUESTS -->
+    <div class="card">
+
+        <h2>Received Requests</h2>
+
+        <button onclick="loadReceivedRequests()">Refresh Requests</button>
+
+        <div id="receivedList">
+            Loading requests...
+        </div>
+
+    </div>
+
+
+    <!-- SENT REQUESTS -->
+    <div class="card">
+
+        <h2>Sent Requests</h2>
+
+        <button onclick="loadSentRequests()">Refresh Sent Requests</button>
+
+        <div id="sentList">
+            Loading requests...
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    // CHECK LOGIN SESSION
+    async function checkLogin() {
+
+        try {
+
+            const response = await fetch("/api/users/check", {
+                credentials: "same-origin"
+            });
+
+            const result = await response.json();
+
+            if (!result.authenticated) {
+                alert("Please login first!");
+                window.location.href = "login.html";
+                return false;
+            }
+
+            return true;
+
+        } catch (error) {
+
+            alert("Unable to verify login.");
+            window.location.href = "login.html";
+            return false;
+
+        }
+    }
+
+
+    // SEND REQUEST
+    document.getElementById("requestForm")
+        .addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+
+        const message = document.getElementById("message");
+
+        const request = {
+
+            receiverEmail:
+                document.getElementById("receiverEmail").value.trim(),
+
+            skillOffered:
+                document.getElementById("skillOffered").value.trim(),
+
+            skillRequested:
+                document.getElementById("skillRequested").value.trim()
+
+        };
+
+        message.innerText = "Sending request...";
+        message.className = "";
+
+        try {
+
+            const response = await fetch("/api/requests/send", {
+
+                method: "POST",
+
+                credentials: "same-origin",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(request)
+
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+
+                if (response.status === 401) {
+                    window.location.href = "login.html";
+                    return;
+                }
+
+                throw new Error(result.error || "Unable to send request.");
+
+            }
+
+            message.innerText = result.message;
+            message.className = "success";
+
+            document.getElementById("requestForm").reset();
+
+            loadSentRequests();
+
+        } catch (error) {
+
+            message.innerText = error.message;
+            message.className = "error";
+
+        }
+
+    });
+
+
+    // LOAD RECEIVED REQUESTS
+    async function loadReceivedRequests() {
+
+        const list = document.getElementById("receivedList");
+
+        list.innerHTML = "Loading requests...";
+
+        try {
+
+            const response = await fetch("/api/requests/received", {
+                credentials: "same-origin"
+            });
+
+            if (response.status === 401) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error("Could not load requests.");
+            }
+
+            const requests = await response.json();
+
+            list.innerHTML = "";
+
+            if (requests.length === 0) {
+
+                list.innerHTML = "No requests received yet.";
+
+                return;
+            }
+
+            requests.forEach(request => {
+
+                const div = document.createElement("div");
+
+                div.className = "request";
+
+                const details = document.createElement("p");
+
+                details.textContent =
+                    "From: " + request.senderEmail +
+                    " | Offers: " + request.skillOffered +
+                    " | Wants to learn: " + request.skillRequested;
+
+                const status = document.createElement("p");
+
+                status.className = "status";
+
+                status.textContent = "Status: " + request.status;
+
+                div.appendChild(details);
+                div.appendChild(status);
+
+                if (request.status === "PENDING") {
+
+                    const acceptButton = document.createElement("button");
+
+                    acceptButton.textContent = "Accept";
+
+                    acceptButton.onclick = () =>
+                        updateRequest(request.id, "ACCEPTED");
+
+                    const rejectButton = document.createElement("button");
+
+                    rejectButton.textContent = "Reject";
+
+                    rejectButton.className = "reject";
+
+                    rejectButton.onclick = () =>
+                        updateRequest(request.id, "REJECTED");
+
+                    div.appendChild(acceptButton);
+                    div.appendChild(rejectButton);
+
+                }
+
+                list.appendChild(div);
+
+            });
+
+        } catch (error) {
+
+            list.innerHTML = "Unable to load received requests.";
+
+        }
+
+    }
+
+
+    // LOAD SENT REQUESTS
+    async function loadSentRequests() {
+
+        const list = document.getElementById("sentList");
+
+        list.innerHTML = "Loading sent requests...";
+
+        try {
+
+            const response = await fetch("/api/requests/sent", {
+                credentials: "same-origin"
+            });
+
+            if (response.status === 401) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error("Could not load sent requests.");
+            }
+
+            const requests = await response.json();
+
+            list.innerHTML = "";
+
+            if (requests.length === 0) {
+
+                list.innerHTML = "You have not sent any requests.";
+
+                return;
+            }
+
+            requests.forEach(request => {
+
+                const div = document.createElement("div");
+
+                div.className = "request";
+
+                const details = document.createElement("p");
+
+                details.textContent =
+                    "To: " + request.receiverEmail +
+                    " | You offer: " + request.skillOffered +
+                    " | You want: " + request.skillRequested;
+
+                const status = document.createElement("p");
+
+                status.className = "status";
+
+                status.textContent = "Status: " + request.status;
+
+                div.appendChild(details);
+                div.appendChild(status);
+
+                list.appendChild(div);
+
+            });
+
+        } catch (error) {
+
+            list.innerHTML = "Unable to load sent requests.";
+
+        }
+
+    }
+
+
+    // ACCEPT OR REJECT REQUEST
+    async function updateRequest(id, status) {
+
+        try {
+
+            const response = await fetch(
+                "/api/requests/update/" + id +
+                "?status=" + status,
+                {
+                    method: "PUT",
+                    credentials: "same-origin"
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(result.error || "Unable to update request.");
+
+            }
+
+            alert(result.message);
+
+            loadReceivedRequests();
+            loadSentRequests();
+
+        } catch (error) {
+
+            alert(error.message);
+
+        }
+
+    }
+
+
+    // START PAGE
+    async function startPage() {
+
+        const loggedIn = await checkLogin();
+
+        if (loggedIn) {
+
+            loadReceivedRequests();
+
+            loadSentRequests();
+
+        }
+
+    }
+
+    startPage();
+
+</script>
+
+</body>
+</html>

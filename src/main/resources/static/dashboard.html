@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillSwap - Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        header {
+            background: #2563eb;
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 35px auto;
+            padding: 20px;
+        }
+
+        .welcome {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 22px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            color: #2563eb;
+            margin-top: 0;
+        }
+
+        .details p {
+            font-size: 16px;
+            margin: 14px 0;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .edit {
+            background: #0891b2;
+        }
+
+        .edit:hover {
+            background: #0e7490;
+        }
+
+        .logout {
+            background: #dc2626;
+        }
+
+        .logout:hover {
+            background: #b91c1c;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>SkillSwap</h1>
+    <p>Learn Skills. Share Skills. Grow Together.</p>
+</header>
+
+<div class="container">
+
+    <div class="welcome">
+        <h2>Welcome to Your Dashboard!</h2>
+        <p>Manage your skills and connect with other learners.</p>
+    </div>
+
+    <div class="card">
+        <h2>My Profile</h2>
+
+        <div class="details">
+            <p><strong>Name:</strong> <span id="name">Loading...</span></p>
+            <p><strong>Email:</strong> <span id="email">Loading...</span></p>
+            <p><strong>Skill I Can Teach:</strong> <span id="teach">Loading...</span></p>
+            <p><strong>Skill I Want to Learn:</strong> <span id="learn">Loading...</span></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Dashboard Menu</h2>
+
+        <div class="buttons">
+
+            <button class="edit"
+                onclick="window.location.href='edit-profile.html'">
+                ✏️ Edit Profile
+            </button>
+
+            <button onclick="window.location.href='search.html'">
+                🔍 Search Skills
+            </button>
+
+            <button onclick="window.location.href='requests.html'">
+                🤝 Skill Exchange Requests
+            </button>
+
+            <button onclick="window.location.href='notifications.html'">
+                🔔 My Notifications
+            </button>
+
+            <button class="logout" onclick="logout()">
+                🚪 Logout
+            </button>
+
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <p>© 2026 SkillSwap | Share Knowledge, Build Connections</p>
+</footer>
+
+<script>
+
+async function loadProfile() {
+
+    try {
+
+        const response = await fetch("/api/users/profile", {
+            credentials: "same-origin"
+        });
+
+        if (response.status === 401) {
+            localStorage.removeItem("userEmail");
+            alert("Please login first!");
+            window.location.href = "login.html";
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error("Unable to load profile");
+        }
+
+        const user = await response.json();
+
+        document.getElementById("name").textContent = user.name || "";
+        document.getElementById("email").textContent = user.email || "";
+        document.getElementById("teach").textContent = user.skillToTeach || "Not added";
+        document.getElementById("learn").textContent = user.skillToLearn || "Not added";
+
+    } catch (error) {
+
+        console.error("Profile error:", error);
+
+        alert("Unable to load profile. Please try again.");
+    }
+}
+
+
+async function logout() {
+
+    try {
+
+        const response = await fetch("/api/users/logout", {
+            method: "POST",
+            credentials: "same-origin"
+        });
+
+        if (response.ok) {
+
+            localStorage.removeItem("userEmail");
+
+            alert("You have logged out successfully!");
+
+            window.location.href = "login.html";
+
+        } else {
+
+            alert("Unable to logout. Please try again.");
+
+        }
+
+    } catch (error) {
+
+        alert("Something went wrong during logout.");
+
+    }
+}
+
+loadProfile();
+
+</script>
+
+</body>
+</html>
