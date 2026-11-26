@@ -28,20 +28,23 @@ public class UserController {
         if (user.getEmail() == null || user.getPassword() == null
                 || user.getEmail().isBlank()
                 || user.getPassword().isBlank()) {
-            throw new RuntimeException("Email and password are required!");
+            throw new RuntimeException(
+                    "Email and password are required!");
         }
 
         if (userRepository.findByEmail(user.getEmail()) != null) {
-            throw new RuntimeException("Email already registered!");
+            throw new RuntimeException(
+                    "Email already registered!");
         }
 
         user.setPassword(encoder.encode(user.getPassword()));
+
         userRepository.save(user);
 
         return "Registration successful!";
     }
 
-    // LOGIN USER AND CREATE SESSION
+    // LOGIN USER
     @PostMapping("/login")
     public ResponseEntity<String> login(
             @RequestBody Map<String, String> details,
@@ -70,7 +73,8 @@ public class UserController {
                 || storedPassword.startsWith("$2b$")
                 || storedPassword.startsWith("$2y$")) {
 
-            passwordMatches = encoder.matches(password, storedPassword);
+            passwordMatches =
+                    encoder.matches(password, storedPassword);
 
         } else {
 
@@ -94,16 +98,18 @@ public class UserController {
         }
 
         HttpSession session = request.getSession(true);
+
         session.setAttribute("USER_EMAIL", user.getEmail());
 
         return ResponseEntity.ok("Login successful!");
     }
 
-    // GET LOGGED-IN USER PROFILE
+    // GET USER PROFILE
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(HttpSession session) {
 
-        String email = (String) session.getAttribute("USER_EMAIL");
+        String email =
+                (String) session.getAttribute("USER_EMAIL");
 
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -146,45 +152,48 @@ public class UserController {
 
         return "Logged out successfully!";
     }
+
     // UPDATE USER PROFILE
-@PutMapping("/profile")
-public ResponseEntity<?> updateProfile(
-        @RequestBody Map<String, String> details,
-        HttpSession session) {
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @RequestBody Map<String, String> details,
+            HttpSession session) {
 
-    String email = (String) session.getAttribute("USER_EMAIL");
+        String email =
+                (String) session.getAttribute("USER_EMAIL");
 
-    if (email == null) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("error", "Please login first"));
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Please login first"));
+        }
+
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "User not found"));
+        }
+
+        String name = details.get("name");
+        String skillToTeach = details.get("skillToTeach");
+        String skillToLearn = details.get("skillToLearn");
+
+        if (name == null || name.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Name is required"));
+        }
+
+        user.setName(name);
+        user.setSkillToTeach(skillToTeach);
+        user.setSkillToLearn(skillToLearn);
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(
+                Map.of("message",
+                        "Profile updated successfully!")
+        );
     }
-
-    User user = userRepository.findByEmail(email);
-
-    if (user == null) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("error", "User not found"));
-    }
-
-    String name = details.get("name");
-    String skillToTeach = details.get("skillToTeach");
-    String skillToLearn = details.get("skillToLearn");
-
-    if (name == null || name.isBlank()) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("error", "Name is required"));
-    }
-
-    user.setName(name);
-    user.setSkillToTeach(skillToTeach);
-    user.setSkillToLearn(skillToLearn);
-
-    userRepository.save(user);
-
-    return ResponseEntity.ok(
-            Map.of("message", "Profile updated successfully!")
-    );
-}
 
     // SEARCH USERS BY SKILL
     @GetMapping("/search")
@@ -192,19 +201,23 @@ public ResponseEntity<?> updateProfile(
             @RequestParam String skill) {
 
         List<User> users =
-                userRepository.findBySkillToTeachContainingIgnoreCase(skill);
+                userRepository.findBySkillToTeachContainingIgnoreCase(
+                        skill);
 
         List<Map<String, Object>> results = new ArrayList<>();
 
         for (User user : users) {
 
-            Map<String, Object> details = new LinkedHashMap<>();
+            Map<String, Object> details =
+                    new LinkedHashMap<>();
 
             details.put("id", user.getId());
             details.put("name", user.getName());
             details.put("email", user.getEmail());
-            details.put("skillToTeach", user.getSkillToTeach());
-            details.put("skillToLearn", user.getSkillToLearn());
+            details.put("skillToTeach",
+                    user.getSkillToTeach());
+            details.put("skillToLearn",
+                    user.getSkillToLearn());
 
             results.add(details);
         }
